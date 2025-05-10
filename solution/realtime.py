@@ -8,6 +8,7 @@ import math
 from torchvision import datasets, transforms
 import os
 import time
+from pathlib import Path
 
 class CustomCNN(nn.Module):
     """
@@ -124,10 +125,12 @@ USE_WEBCAM = True
 DATA_FOLDER = "test_dataset"
 
 if __name__ == "__main__":
-    yolo_model = YOLO('/Users/vlad.sarm/Documents/sausage_rotation_estimation/weights/yolo11n_trained.pt')
+    WORKDIR = Path.cwd()
+
+    yolo_model = YOLO(WORKDIR / 'weights/yolo11n_trained.pt')
     device = 'mps'
     model = CustomCNN().to(device)
-    checkpoint = torch.load("/Users/vlad.sarm/Documents/sausage_rotation_estimation/weights/angle_cnn_weights_2.pth", map_location=device)
+    checkpoint = torch.load(WORKDIR / "weights/angle_cnn_weights_2.pth", map_location=device)
     model.load_state_dict(checkpoint)
     model.eval()
     print("Loaded model weights and set model to eval mode")
