@@ -136,7 +136,9 @@ DATA_FOLDER = "/Users/vlad.sarm/Documents/sausage_rotation_estimation/data/test_
 ERROR_TRESHOLD = 10
 
 if __name__ == "__main__":
-    yolo_model = YOLO('/Users/vlad.sarm/Documents/sausage_rotation_estimation/weights/yolo11n_trained.pt')
+    WORKDIR = Path.cwd()
+
+    yolo_model = YOLO(WORKDIR / 'weights/yolo11n_trained.pt')
     device = 'mps'
     model = AngleEstimationModel(N=N, M=M, feature_extract=False).to(device)
     checkpoint = torch.load("/Users/vlad.sarm/Documents/sausage_rotation_estimation/angle_recognition/rgb2_N-24_M-4/MAE-2.50_DEV-11.42_EPOCH-8.pth", map_location=device)

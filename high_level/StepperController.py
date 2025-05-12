@@ -1,5 +1,6 @@
 import serial
 import time
+import argparse
 
 class StepperController:
     def __init__(self, port, baud_rate=115200, timeout=1):
@@ -60,8 +61,13 @@ class StepperController:
 
 # Example usage
 if __name__ == "__main__":
-    # Replace 'COM3' with your Arduino's serial port
-    controller = StepperController('/dev/tty.usbserial-2130')  # Use '/dev/ttyUSB0' on Linux
+    parser = argparse.ArgumentParser(description='Control stepper motor rotation')
+    parser.add_argument('--port', type=str, default='/dev/tty.usbserial-1130',
+                        help='Serial port for Arduino (default: /dev/tty.usbserial-1130)')
+    
+    args = parser.parse_args()
+    
+    controller = StepperController(args.port)  # Use '/dev/ttyUSB0' on Linux
     
     try:
         # Rotate to specific angles
