@@ -38,7 +38,8 @@ class AngleDataset(Dataset):
         self.samples = []
         
         # Find all images and their respective angles
-        for angle_folder in os.listdir(root_dir):
+        sorted_folders = sorted(os.listdir(root_dir), key=lambda x: int(x) if x.isdigit() else -1)
+        for angle_folder in sorted_folders:
             try:
                 angle = int(angle_folder)
                 if 0 <= angle <= 359:
@@ -72,7 +73,9 @@ class AngleDataset(Dataset):
             discrete_angles = [(start_angle + k * self.G) % 360 for k in range(self.N)]
             
             # Find the closest discrete angle
-            class_idx = np.argmin([(angle - a + 180) % 360 - 180 for a in discrete_angles])
+            class_idx = np.argmin([abs(angle - a) % 360 - 180 for a in discrete_angles])
+            if 360 - angle < abs(discrete_angles[class_idx] - angle):
+                class_idx = 0
             target_classes.append(class_idx)
         
         return image, torch.tensor(target_classes), torch.tensor(angle, dtype=torch.float32)
@@ -99,7 +102,15 @@ class OrientationPredictionUnit(nn.Module):
     
     def forward(self, x):
         # Apply each classifier
-        outputs = [classifier(x) for classifier in self.classifiers]
+
+        # outputs = [
+        #     F.softmax(classifier(x), dim=1)
+        #     for classifier in self.classifiers
+        # ]
+        outputs = [
+            classifier(x)
+            for classifier in self.classifiers
+        ]
         return outputs  # List of M tensors, each of shape [batch_size, N]
 
 class AngleEstimationModel(nn.Module):
@@ -230,11 +241,6 @@ def mean_shift(softmax_outputs, N, M, nu=1):
     # Convert back to degrees
     angle_degrees = math.degrees(theta) % 360
 
-    # MY FIX. Somehow error was bigger on 180 degrees.
-    angle_degrees += 180
-    if angle_degrees > 360:
-        angle_degrees -= 360
-
     return angle_degrees
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -302,6 +308,7 @@ def evaluate_model(model, dataloader, criterion, device):
     total_mae = 0.0
     count = 0
     running_loss = 0.0
+    error_list = []
     
     with torch.no_grad():
         for inputs, targets, true_angles in dataloader:
@@ -333,12 +340,13 @@ def evaluate_model(model, dataloader, criterion, device):
                 # Calculate angular error (minimum difference in circle)
                 true_angle = true_angles[i].item()
                 error = abs((predicted_angle - true_angle + 180) % 360 - 180)
-                
+                error_list.append(error)
                 total_mae += error
                 count += 1
     
     mae = total_mae / count
-    return epoch_loss, mae
+    std_dev = np.std(error_list)
+    return epoch_loss, mae, std_dev
 
 def split_dataset(source_folder, dest_base_folder, val_ratio=0.1, random_seed=42):
     """

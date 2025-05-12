@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import numpy as np
 from PIL import Image
+import random
+
+START_ANGLE = 0
 
 class RotationOrganizer:
     def __init__(self, image_folder):
@@ -25,9 +28,15 @@ class RotationOrganizer:
         
         # Custom sorting to handle image_x_y.jpg format
         def sort_key(filename):
+            # Matches filenames like: image_<anyword>_<number1>_<number2>.<ext>
+            # match = re.match(r'image_([^_]+)_(\d+)_(\d+)\..*', filename)
             match = re.match(r'image_(\d+)_(\d+)\..*', filename)
             if match:
-                return (int(match.group(1)), int(match.group(2)))
+                # word, n1, n2 = match.groups()
+                n1, n2 = match.groups()
+                # Sort first by the word, then by the two numbers
+                return (int(n1), int(n2))
+            # Fallback to filename string so non-matching files still get sorted
             return filename
             
         return sorted(image_files, key=sort_key)
@@ -70,14 +79,17 @@ class RotationOrganizer:
         ax_prev = plt.axes([0.2, 0.05, 0.1, 0.075])
         ax_next = plt.axes([0.4, 0.05, 0.1, 0.075])
         ax_mark = plt.axes([0.6, 0.05, 0.2, 0.075])
+        ax_skip = plt.axes([0.8, 0.05, 0.2, 0.075])
         
         self.btn_prev = Button(ax_prev, 'Previous')
         self.btn_next = Button(ax_next, 'Next')
         self.btn_mark = Button(ax_mark, 'Mark 360° Point')
+        self.btn_skip = Button(ax_skip, 'Skip 360°')
         
         self.btn_prev.on_clicked(self.prev_image)
         self.btn_next.on_clicked(self.next_image)
         self.btn_mark.on_clicked(self.mark_360_point)
+        self.btn_skip.on_clicked(self.skip_360)
         
         self.show_current_image()
         
@@ -102,6 +114,23 @@ class RotationOrganizer:
         if self.current_idx > 0:
             self.current_idx -= 1
             self.show_current_image()
+
+    def skip_360(self, event):
+        """Mark the current image as completing a 360° rotation."""
+        self.end_idx = self.current_idx
+        print(f"Marked image {self.images[self.end_idx]} as 360° point")
+        
+        # Process the images between start_idx and end_idx
+        # self.process_rotation()
+        
+        # Set up for next rotation
+        self.start_idx = self.end_idx + 1
+        if self.start_idx < len(self.images):
+            self.current_idx = self.start_idx
+            self.show_current_image()
+            print(f"Starting new rotation from image {self.images[self.start_idx]}")
+        else:
+            print("All images processed!")
     
     def mark_360_point(self, event):
         """Mark the current image as completing a 360° rotation."""
@@ -120,7 +149,7 @@ class RotationOrganizer:
         else:
             print("All images processed!")
     
-    def process_rotation(self):
+    def process_rotation(self, skip_save=False):
         """Distribute images into degree folders."""
         if self.end_idx <= self.start_idx:
             print("No images to process")
@@ -133,9 +162,9 @@ class RotationOrganizer:
         print(f"Processing {num_images} images for one rotation")
         
         # Create degree folders if they don't exist
-        for degree in range(360):
-            degree_folder = os.path.join(self.image_folder, "by_degrees", str(degree))
-            os.makedirs(degree_folder, exist_ok=True)
+        # for degree in range(360):
+        #     degree_folder = os.path.join(self.image_folder, "by_degrees", str(degree))
+        #     os.makedirs(degree_folder, exist_ok=True)
         
         # Distribute images across degree folders
         for i, img_name in enumerate(images_to_process):
@@ -143,18 +172,34 @@ class RotationOrganizer:
             degree = int((i / num_images) * 360)
             if degree == 360:  # Handle edge case
                 degree = 0
-                
+            degree = (degree + START_ANGLE) % 360
+
             source_path = os.path.join(self.image_folder, img_name)
-            dest_folder = os.path.join(self.image_folder, "by_degrees", str(degree))
+            dest_folder = os.path.join(
+                "/Users/vlad.sarm/Documents/sausage_rotation_estimation/data/by_degrees",
+                str(degree)
+            )
+            # give it a unique name to avoid collisions
+            new_name = f"{random.randint(0, 1000000)}_{img_name}"
             os.makedirs(dest_folder, exist_ok=True)
-            dest_path = os.path.join(dest_folder, img_name)
-            
-            # Copy the image to the appropriate degree folder
-            shutil.copy2(source_path, dest_path)
-            print(f"Copied {img_name} to folder {degree}")
+            dest_path = os.path.join(dest_folder, new_name)
+
+            # Open, flip on vertical axis, and save
+            with Image.open(source_path) as img:
+                # flipped = img.transpose(Image.FLIP_LEFT_RIGHT)
+                # flipped = flipped.transpose(Image.FLIP_TOP_BOTTOM)
+                try:
+                    img.save(dest_path)
+                except FileExistsError:
+                    new_name = f"{random.randint(0, 1000000)}_{img_name}"
+                    os.makedirs(dest_folder, exist_ok=True)
+                    dest_path = os.path.join(dest_folder, new_name)
+                    img.save(dest_path)
+
+            print(f"Flipped and saved {new_name} to folder {degree}")
 
 def main():
-    image_folder = "/Users/vlad.sarm/Documents/sausage_rotation_estimation/data/raw_data"
+    image_folder = "/Users/vlad.sarm/Documents/sausage_rotation_estimation/data/raw_data/rgb_2"
     organizer = RotationOrganizer(image_folder)
     plt.show()
 

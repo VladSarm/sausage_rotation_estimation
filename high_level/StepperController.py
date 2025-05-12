@@ -65,13 +65,13 @@ if __name__ == "__main__":
     
     try:
         # Rotate to specific angles
-        controller.rotate_to_angle(360*1)
-        time.sleep(1)
-        controller.rotate_to_angle(360*2)
-        time.sleep(1)
-        controller.rotate_to_angle(360*3)
-        time.sleep(1)
-        controller.rotate_to_angle(0)
+        controller.rotate_to_angle(360-150)
+        # time.sleep(1)
+        # controller.rotate_to_angle(360*2)
+        # time.sleep(1)
+        # controller.rotate_to_angle(360*3)
+        # time.sleep(1)
+        # controller.rotate_to_angle(0)
         
     finally:
         # Always close the serial connection
